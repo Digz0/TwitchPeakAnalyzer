@@ -135,16 +135,6 @@ def format_timestamp(seconds: int) -> str:
     return str(timedelta(seconds=seconds))
 
 def format_output(top_moments: List[Dict], num_messages: int) -> str:
-    """
-    Format the analysis results for output.
-
-    Args:
-        top_moments (List[Dict]): List of top chat moments.
-        num_messages (int): Number of messages to display for each moment.
-
-    Returns:
-        str: Formatted output string.
-    """
     if not top_moments:
         return create_summary([], [])
 
@@ -153,16 +143,13 @@ def format_output(top_moments: List[Dict], num_messages: int) -> str:
         formatted_time = moment['formatted_time']
         message_count = moment['message_count']
         
-        moment_output = f"Time: {formatted_time}, Message Count: {message_count}"
-        
         bar_length = min(message_count, MAX_BAR_LENGTH)
-        visualization = f"\n{formatted_time} | {'-' * bar_length} ({message_count} messages)"
-        moment_output += visualization
+        visualization = f"{formatted_time} | {'-' * bar_length} | {message_count} messages"
+        output.append(visualization)
         
         if num_messages is not None:
             messages = [f"  - {msg['message']}" for msg in moment['messages'][:num_messages]]
-            moment_output += "\n" + "\n".join(messages)
-        output.append(moment_output)
+            output.append("\n".join(messages))
     
     scale = "\n0       10      20      30      40      50      60      70      80      90      100"
     scale += "\n|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|"

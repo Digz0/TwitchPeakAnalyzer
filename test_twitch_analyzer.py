@@ -142,8 +142,8 @@ class TestTwitchAnalyzer(unittest.TestCase):
             }
         ]
         result = format_output(top_moments, num_messages=1)
-        pattern = r"4:07:20 \| (-{82}) \(82 messages\)"
-        self.assertTrue(re.search(pattern, result), "Visualization bar does not match expected length")
+        expected_pattern = r"4:07:20 \| (-{82}) \| 82 messages"
+        self.assertTrue(re.search(expected_pattern, result), "Visualization bar does not match expected format")
         self.assertIn("0       10      20      30      40      50      60      70      80      90      100", result)
         self.assertIn("|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|", result)
         self.assertIn("  - Test", result)
@@ -172,11 +172,9 @@ class TestTwitchAnalyzer(unittest.TestCase):
         sys.stdout = sys.__stdout__
 
         output = captured_output.getvalue()
-        self.assertIn("Time: 0:02:00", output)
-        self.assertIn("Message Count: 2", output)
-        self.assertIn("Time: 0:02:10", output)
-        self.assertIn("Message Count: 1", output)
-        self.assertIn("Total moments analyzed: 2", output)  # Update expected number of moments
+        self.assertIn("0:02:00 | -- | 2 messages", output)
+        self.assertIn("0:02:10 | - | 1 messages", output)
+        self.assertIn("Total moments analyzed: 2", output)
         self.assertIn("Average messages per moment: 1.50", output)
         self.assertIn("Max messages in a moment: 2", output)
         self.assertIn("Min messages in a moment: 1", output)
@@ -247,7 +245,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
         """Test the format_output function with a large message count."""
         moments = [{'formatted_time': '00:00:00', 'message_count': 1000, 'messages': []}]
         result = format_output(moments, None)
-        self.assertIn("00:00:00 | " + "-" * 100 + " (1000 messages)", result)
+        self.assertIn("00:00:00 | " + "-" * 100 + " | 1000 messages", result)
         
 if __name__ == '__main__':
     unittest.main()

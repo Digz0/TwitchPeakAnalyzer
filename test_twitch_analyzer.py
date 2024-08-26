@@ -4,6 +4,7 @@ Test suite for the Twitch Chat Analyzer module.
 This module contains unit tests for the functions in twitch_analyzer.py.
 """
 import unittest
+from collections import defaultdict  # Add this import
 from twitch_analyzer import (
     group_messages_by_window, 
     calculate_activity, 
@@ -13,7 +14,8 @@ from twitch_analyzer import (
     format_timestamp, 
     time_to_seconds,
     main,
-    format_output
+    format_output,
+    create_summary
 )
 import io
 import sys
@@ -256,6 +258,41 @@ class TestTwitchAnalyzer(unittest.TestCase):
         lines = result.split('\n')
         bar_lengths = [line.count('-') for line in lines if '|' in line and ':' in line]  # Only count lines with time
         self.assertEqual(bar_lengths, [33, 66, 100])  # Proportional lengths
+
+    def test_group_messages_by_window_empty_input(self):
+        """Test group_messages_by_window with empty input."""
+        result = group_messages_by_window([], 10)
+        self.assertEqual(result, {})
+
+    def test_group_messages_by_window_return_type(self):
+        """Test that group_messages_by_window returns a regular dict, not defaultdict."""
+        result = group_messages_by_window(self.sample_data, 10)
+        self.assertIsInstance(result, dict)
+        self.assertNotIsInstance(result, defaultdict)
+
+    def test_analyze_chat_moments_input_validation(self):
+        """Test analyze_chat_moments with invalid input."""
+        with self.assertRaises(ValueError):
+            analyze_chat_moments(self.sample_data, window_size=0)
+        with self.assertRaises(ValueError):
+            analyze_chat_moments(self.sample_data, num_moments=0)
+
+    def test_format_output_num_messages_limit(self):
+        """Test format_output respects the num_messages limit."""
+        moments = [{
+            'formatted_time': '00:00:00',
+            'message_count': 5,
+            'messages': [{'message': f'msg{i}'} for i in range(5)]
+        }]
+        result = format_output(moments, num_messages=3)
+        self.assertEqual(result.count('  - msg'), 3)
+
+    def test_create_summary_empty_input(self):
+        """Test create_summary with empty input."""
+        result = create_summary([], [])
+        self.assertIn("Total moments analyzed: 0", result)
+        self.assertIn("Average messages per moment: 0.00", result)
+        self.assertIn("No messages found in the specified range.", result)
 
 if __name__ == '__main__':
     unittest.main()

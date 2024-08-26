@@ -50,7 +50,7 @@ def group_messages_by_window(chat_data: List[Dict], window_size: int,
             window = (time - start_time) // window_size
             messages_by_window[window].append(message)
     
-    return messages_by_window
+    return dict(messages_by_window)  # Convert defaultdict to regular dict before returning
 
 def calculate_activity(messages_by_window: Dict[int, List[Dict]]) -> Dict[int, int]:
     """
@@ -96,6 +96,22 @@ def create_moment_data(top_moments: List[int], messages_by_window: Dict[int, Lis
             })
     return sorted(moment_data, key=lambda x: x['timestamp'])
 
+def validate_input(window_size: int, num_moments: int) -> None:
+    """
+    Validate input parameters for analyze_chat_moments.
+
+    Args:
+        window_size (int): Size of each time window in seconds.
+        num_moments (int): Number of top moments to identify.
+
+    Raises:
+        ValueError: If window_size or num_moments is less than or equal to 0.
+    """
+    if window_size <= 0:
+        raise ValueError("window_size must be greater than 0")
+    if num_moments <= 0:
+        raise ValueError("num_moments must be greater than 0")
+
 def analyze_chat_moments(chat_data: List[Dict], window_size: int = DEFAULT_WINDOW_SIZE, 
                          start_time: int = None, end_time: int = None,
                          num_moments: int = DEFAULT_NUM_MOMENTS) -> List[Dict]:
@@ -114,6 +130,8 @@ def analyze_chat_moments(chat_data: List[Dict], window_size: int = DEFAULT_WINDO
     """
     if not chat_data:
         return []
+    
+    validate_input(window_size, num_moments)
     
     messages_by_window = group_messages_by_window(chat_data, window_size, start_time, end_time)
     

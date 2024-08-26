@@ -1,3 +1,2 @@
 __pycache__/
-chat_data.json
-chat_data2.json
+*.json

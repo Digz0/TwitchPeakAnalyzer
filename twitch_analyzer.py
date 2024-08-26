@@ -138,12 +138,14 @@ def format_output(top_moments: List[Dict], num_messages: int) -> str:
     if not top_moments:
         return create_summary([], [])
 
+    max_count = max(moment['message_count'] for moment in top_moments)
     output = []
     for moment in top_moments:
         formatted_time = moment['formatted_time']
         message_count = moment['message_count']
         
-        bar_length = min(message_count, MAX_BAR_LENGTH)
+        # Scale the bar length relative to the maximum count
+        bar_length = int((message_count / max_count) * MAX_BAR_LENGTH)
         visualization = f"{formatted_time} | {'-' * bar_length} | {message_count} messages"
         output.append(visualization)
         

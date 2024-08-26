@@ -142,7 +142,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
             }
         ]
         result = format_output(top_moments, num_messages=1)
-        expected_pattern = r"4:07:20 \| (-{82}) \| 82 messages"
+        expected_pattern = r"4:07:20 \| (-{100}) \| 82 messages"
         self.assertTrue(re.search(expected_pattern, result), "Visualization bar does not match expected format")
         self.assertIn("0       10      20      30      40      50      60      70      80      90      100", result)
         self.assertIn("|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|", result)
@@ -172,8 +172,8 @@ class TestTwitchAnalyzer(unittest.TestCase):
         sys.stdout = sys.__stdout__
 
         output = captured_output.getvalue()
-        self.assertIn("0:02:00 | -- | 2 messages", output)
-        self.assertIn("0:02:10 | - | 1 messages", output)
+        self.assertIn("0:02:00 | ---------------------------------------------------------------------------------------------------- | 2 messages", output)
+        self.assertIn("0:02:10 | -------------------------------------------------- | 1 messages", output)
         self.assertIn("Total moments analyzed: 2", output)
         self.assertIn("Average messages per moment: 1.50", output)
         self.assertIn("Max messages in a moment: 2", output)
@@ -247,5 +247,17 @@ class TestTwitchAnalyzer(unittest.TestCase):
         result = format_output(moments, None)
         self.assertIn("00:00:00 | " + "-" * 100 + " | 1000 messages", result)
         
+    def test_format_output_proportional_bars(self):
+        """Test that format_output produces proportional bars for different message counts."""
+        moments = [
+            {'formatted_time': '00:00:00', 'message_count': 100, 'messages': []},
+            {'formatted_time': '00:01:00', 'message_count': 200, 'messages': []},
+            {'formatted_time': '00:02:00', 'message_count': 300, 'messages': []}
+        ]
+        result = format_output(moments, None)
+        lines = result.split('\n')
+        bar_lengths = [line.count('-') for line in lines if '|' in line and ':' in line]  # Only count lines with time
+        self.assertEqual(bar_lengths, [33, 66, 100])  # Proportional lengths
+
 if __name__ == '__main__':
     unittest.main()

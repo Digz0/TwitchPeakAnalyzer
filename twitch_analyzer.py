@@ -153,10 +153,6 @@ def format_output(top_moments: List[Dict], num_messages: int) -> str:
             messages = [f"  - {msg['message']}" for msg in moment['messages'][:num_messages]]
             output.append("\n".join(messages))
     
-    scale = "\n0       10      20      30      40      50      60      70      80      90      100"
-    scale += "\n|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|"
-    output.append(scale)
-    
     message_counts = [moment['message_count'] for moment in top_moments]
     summary = create_summary(top_moments, message_counts)
     

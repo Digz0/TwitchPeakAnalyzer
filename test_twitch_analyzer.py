@@ -144,8 +144,6 @@ class TestTwitchAnalyzer(unittest.TestCase):
         result = format_output(top_moments, num_messages=1)
         expected_pattern = r"4:07:20 \| (-{100}) \| 82 messages"
         self.assertTrue(re.search(expected_pattern, result), "Visualization bar does not match expected format")
-        self.assertIn("0       10      20      30      40      50      60      70      80      90      100", result)
-        self.assertIn("|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|", result)
         self.assertIn("  - Test", result)
         self.assertIn("Analysis Summary:", result)
 

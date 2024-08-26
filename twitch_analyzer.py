@@ -231,6 +231,8 @@ def load_chat_data(file_path: str) -> List[Dict]:
         print(f"Error: File '{file_path}' not found.")
     except json.JSONDecodeError:
         print(f"Error: '{file_path}' is not a valid JSON file.")
+    except Exception as e:
+        print(f"Error: An unexpected error occurred: {str(e)}")
     return None
 
 if __name__ == "__main__":

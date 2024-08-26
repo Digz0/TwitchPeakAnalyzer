@@ -1,7 +1,5 @@
 # TwitchPeakAnalyzer
 
-TwitchPeakAnalyzer is a tool for analyzing Twitch chat data, identifying and visualizing moments of high activity.
-
 ## Installation
 
 1. Clone this repository:

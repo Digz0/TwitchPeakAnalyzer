@@ -4,7 +4,14 @@ Test suite for the Twitch Chat Analyzer module.
 This module contains unit tests for the functions in twitch_analyzer.py.
 """
 import unittest
-from collections import defaultdict  # Add this import
+from unittest.mock import patch, mock_open
+import io
+import sys
+import json
+import re
+from typing import List, Dict
+from collections import defaultdict
+
 from twitch_analyzer import (
     group_messages_by_window, 
     calculate_activity, 
@@ -17,18 +24,10 @@ from twitch_analyzer import (
     format_output,
     create_summary
 )
-import io
-import sys
-import json
-from unittest.mock import patch, mock_open
-import re
 
 class TestTwitchAnalyzer(unittest.TestCase):
-    """Test cases for the Twitch Chat Analyzer module."""
-
-    def setUp(self):
-        """Set up test data."""
-        self.sample_data = [
+    def setUp(self) -> None:
+        self.sample_data: List[Dict] = [
             {'time_in_seconds': 1, 'message': 'Hello'},
             {'time_in_seconds': 2, 'message': 'Hi'},
             {'time_in_seconds': 2, 'message': 'Hey'},
@@ -40,8 +39,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
             {'time_in_seconds': 15, 'message': 'Test3'},
         ]
 
-    def test_analyze_chat_moments(self):
-        """Test the analyze_chat_moments function."""
+    def test_analyze_chat_moments(self) -> None:
         result = analyze_chat_moments(self.sample_data)
         self.assertEqual(len(result), 2)
         self.assertTrue(all(isinstance(moment, dict) for moment in result))
@@ -54,7 +52,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
         self.assertEqual(len(result_custom), 2)
 
         timestamps = [moment['timestamp'] for moment in result]
-        self.assertEqual(timestamps, [1, 14])  # Update expected timestamps
+        self.assertEqual(timestamps, [1, 14])
 
         message_counts = [moment['message_count'] for moment in result]
         self.assertEqual(set(message_counts), {6, 3})
@@ -66,14 +64,12 @@ class TestTwitchAnalyzer(unittest.TestCase):
         self.assertEqual(result_range[0]['timestamp'], 2)
         self.assertEqual(result_range[1]['timestamp'], 14)
 
-    def test_analyze_chat_moments_limit(self):
-        """Test the analyze_chat_moments function with a large number of moments."""
+    def test_analyze_chat_moments_limit(self) -> None:
         sample_data = [{'time_in_seconds': i, 'message': f'Message {i}'} for i in range(100)]
         result = analyze_chat_moments(sample_data, window_size=1, num_moments=50)
         self.assertEqual(len(result), 50)
 
-    def test_group_messages_by_window(self):
-        """Test the group_messages_by_window function."""
+    def test_group_messages_by_window(self) -> None:
         result = group_messages_by_window(self.sample_data, 10)
         self.assertEqual(len(result), 2)
         self.assertEqual(len(result[0]), 6)
@@ -85,8 +81,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
         self.assertTrue(0 in result_range)
         self.assertTrue(1 in result_range)
 
-    def test_calculate_activity(self):
-        """Test the calculate_activity function."""
+    def test_calculate_activity(self) -> None:
         messages_by_window = {
             0: [{'message': 'msg1'}, {'message': 'msg2'}, {'message': 'msg3'}],
             1: [{'message': 'msg4'}, {'message': 'msg5'}],
@@ -97,14 +92,12 @@ class TestTwitchAnalyzer(unittest.TestCase):
         expected = {0: 3, 1: 2, 2: 1, 3: 0}
         self.assertEqual(result, expected)
 
-    def test_select_top_moments(self):
-        """Test the select_top_moments function."""
+    def test_select_top_moments(self) -> None:
         activity_by_window = {0: 6, 1: 3, 2: 1}
         result = select_top_moments(activity_by_window, 2)
         self.assertEqual(result, [0, 1])
 
-    def test_create_moment_data(self):
-        """Test the create_moment_data function."""
+    def test_create_moment_data(self) -> None:
         messages_by_window = {
             0: [{'time_in_seconds': 0, 'message': 'Test1'}],
             1: [{'time_in_seconds': 10, 'message': 'Test2'}]
@@ -117,8 +110,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
         self.assertEqual(result[0]['timestamp'], 0)
         self.assertEqual(result[1]['timestamp'], 10)
 
-    def test_time_to_seconds(self):
-        """Test the time_to_seconds function."""
+    def test_time_to_seconds(self) -> None:
         self.assertEqual(time_to_seconds("00:00:00"), 0)
         self.assertEqual(time_to_seconds("00:01:00"), 60)
         self.assertEqual(time_to_seconds("01:00:00"), 3600)
@@ -126,16 +118,14 @@ class TestTwitchAnalyzer(unittest.TestCase):
         with self.assertRaises(ValueError):
             time_to_seconds("invalid")
 
-    def test_format_timestamp(self):
-        """Test the format_timestamp function."""
+    def test_format_timestamp(self) -> None:
         self.assertEqual(format_timestamp(0), "0:00:00")
         self.assertEqual(format_timestamp(60), "0:01:00")
         self.assertEqual(format_timestamp(3600), "1:00:00")
         self.assertEqual(format_timestamp(5430), "1:30:30")
         self.assertEqual(format_timestamp(86400), "1 day, 0:00:00")
 
-    def test_format_output_with_visualization(self):
-        """Test the format_output function with visualization."""
+    def test_format_output_with_visualization(self) -> None:
         top_moments = [
             {
                 'formatted_time': '4:07:20',
@@ -155,8 +145,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
         {'time_in_seconds': 130, 'message': 'Hey'}
     ]))
     @patch('sys.argv', ['twitch_analyzer.py', '-f', 'dummy.json', '-s', '00:02:00', '-e', '00:02:30'])
-    def test_main_script_output_with_time_range(self, mock_file):
-        """Test the main function output with a specific time range."""
+    def test_main_script_output_with_time_range(self, mock_file) -> None:
         captured_output = io.StringIO()
         sys.stdout = captured_output
 
@@ -179,8 +168,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
         self.assertIn("Max messages in a moment: 2", output)
         self.assertIn("Min messages in a moment: 1", output)
 
-    def test_analyze_chat_moments_message_count(self):
-        """Test the analyze_chat_moments function for correct message counts."""
+    def test_analyze_chat_moments_message_count(self) -> None:
         sample_data = [
             {'time_in_seconds': 1, 'message': 'msg1'},
             {'time_in_seconds': 2, 'message': 'msg2'},
@@ -194,61 +182,52 @@ class TestTwitchAnalyzer(unittest.TestCase):
         actual_counts = [moment['message_count'] for moment in result]
         self.assertEqual(actual_counts, expected_counts)
 
-    def test_analyze_chat_moments_empty_data(self):
-        """Test the analyze_chat_moments function with empty data."""
+    def test_analyze_chat_moments_empty_data(self) -> None:
         result = analyze_chat_moments([])
         self.assertEqual(result, [])
 
-    def test_analyze_chat_moments_single_window(self):
-        """Test the analyze_chat_moments function with a single window."""
+    def test_analyze_chat_moments_single_window(self) -> None:
         data = [{'time_in_seconds': 1, 'message': 'msg'} for _ in range(10)]
         result = analyze_chat_moments(data, window_size=20)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['message_count'], 10)
 
-    def test_analyze_chat_moments_no_messages_in_range(self):
-        """Test the analyze_chat_moments function with no messages in the specified range."""
+    def test_analyze_chat_moments_no_messages_in_range(self) -> None:
         data = [{'time_in_seconds': 1, 'message': 'msg'} for _ in range(10)]
         result = analyze_chat_moments(data, start_time=100, end_time=200)
         self.assertEqual(result, [])
 
-    def test_analyze_chat_moments_consistency(self):
-        """Test the analyze_chat_moments function for consistency in results."""
+    def test_analyze_chat_moments_consistency(self) -> None:
         data = [{'time_in_seconds': i, 'message': f'msg{i}'} for i in range(100)]
         result = analyze_chat_moments(data, window_size=10, num_moments=5)
         self.assertEqual(len(result), 5)
         self.assertEqual(result, sorted(result, key=lambda x: x['timestamp']))
 
-    def test_main_file_not_found(self):
-        """Test the main function when the input file is not found."""
+    def test_main_file_not_found(self) -> None:
         with patch('sys.argv', ['twitch_analyzer.py', '-f', 'nonexistent.json']):
             with patch('builtins.print') as mock_print:
                 main()
                 mock_print.assert_called_with("Error: File 'nonexistent.json' not found.")
 
-    def test_main_invalid_json(self):
-        """Test the main function with an invalid JSON file."""
+    def test_main_invalid_json(self) -> None:
         with patch('builtins.open', mock_open(read_data='invalid json')):
             with patch('sys.argv', ['twitch_analyzer.py', '-f', 'invalid.json']):
                 with patch('builtins.print') as mock_print:
                     main()
                     mock_print.assert_called_with("Error: 'invalid.json' is not a valid JSON file.")
 
-    def test_format_output_empty_moments(self):
-        """Test the format_output function with empty moments."""
+    def test_format_output_empty_moments(self) -> None:
         result = format_output([], None)
         self.assertIn("Total moments analyzed: 0", result)
         self.assertIn("Average messages per moment: 0.00", result)
         self.assertIn("No messages found in the specified range.", result)
 
-    def test_format_output_large_message_count(self):
-        """Test the format_output function with a large message count."""
+    def test_format_output_large_message_count(self) -> None:
         moments = [{'formatted_time': '00:00:00', 'message_count': 1000, 'messages': []}]
         result = format_output(moments, None)
         self.assertIn("00:00:00 | " + "-" * 100 + " | 1000 messages", result)
         
-    def test_format_output_proportional_bars(self):
-        """Test that format_output produces proportional bars for different message counts."""
+    def test_format_output_proportional_bars(self) -> None:
         moments = [
             {'formatted_time': '00:00:00', 'message_count': 100, 'messages': []},
             {'formatted_time': '00:01:00', 'message_count': 200, 'messages': []},
@@ -259,26 +238,22 @@ class TestTwitchAnalyzer(unittest.TestCase):
         bar_lengths = [line.count('-') for line in lines if '|' in line and ':' in line]  # Only count lines with time
         self.assertEqual(bar_lengths, [33, 66, 100])  # Proportional lengths
 
-    def test_group_messages_by_window_empty_input(self):
-        """Test group_messages_by_window with empty input."""
+    def test_group_messages_by_window_empty_input(self) -> None:
         result = group_messages_by_window([], 10)
         self.assertEqual(result, {})
 
-    def test_group_messages_by_window_return_type(self):
-        """Test that group_messages_by_window returns a regular dict, not defaultdict."""
+    def test_group_messages_by_window_return_type(self) -> None:
         result = group_messages_by_window(self.sample_data, 10)
         self.assertIsInstance(result, dict)
         self.assertNotIsInstance(result, defaultdict)
 
-    def test_analyze_chat_moments_input_validation(self):
-        """Test analyze_chat_moments with invalid input."""
+    def test_analyze_chat_moments_input_validation(self) -> None:
         with self.assertRaises(ValueError):
             analyze_chat_moments(self.sample_data, window_size=0)
         with self.assertRaises(ValueError):
             analyze_chat_moments(self.sample_data, num_moments=0)
 
-    def test_format_output_num_messages_limit(self):
-        """Test format_output respects the num_messages limit."""
+    def test_format_output_num_messages_limit(self) -> None:
         moments = [{
             'formatted_time': '00:00:00',
             'message_count': 5,
@@ -287,8 +262,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
         result = format_output(moments, num_messages=3)
         self.assertEqual(result.count('  - msg'), 3)
 
-    def test_create_summary_empty_input(self):
-        """Test create_summary with empty input."""
+    def test_create_summary_empty_input(self) -> None:
         result = create_summary([], [])
         self.assertIn("Total moments analyzed: 0", result)
         self.assertIn("Average messages per moment: 0.00", result)

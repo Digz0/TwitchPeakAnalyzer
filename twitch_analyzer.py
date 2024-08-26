@@ -7,7 +7,7 @@ identifying and visualizing moments of high activity.
 
 import json
 from collections import defaultdict
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import timedelta
 import argparse
 
@@ -15,66 +15,39 @@ import argparse
 MAX_BAR_LENGTH = 100
 DEFAULT_WINDOW_SIZE = 10
 DEFAULT_NUM_MOMENTS = 50
+TIME_FORMAT = "%H:%M:%S"
 
 def time_to_seconds(time_str: str) -> int:
-    """
-    Convert HH:MM:SS to seconds.
-
-    Args:
-        time_str (str): Time in HH:MM:SS format.
-
-    Returns:
-        int: Total seconds.
-
-    Raises:
-        ValueError: If time format is invalid.
-    """
+    """Convert HH:MM:SS to seconds."""
     try:
-        h, m, s = map(int, time_str.split(':'))
-        return h * 3600 + m * 60 + s
+        return int(timedelta(**dict(zip(['hours', 'minutes', 'seconds'], map(int, time_str.split(':'))))).total_seconds())
     except ValueError:
         raise ValueError("Time must be in HH:MM:SS format")
 
 def group_messages_by_window(chat_data: List[Dict], window_size: int, 
-                             start_time: int = None, end_time: int = None) -> Dict[int, List[Dict]]:
-    messages_by_window = defaultdict(list)
+                             start_time: Optional[int] = None, end_time: Optional[int] = None) -> Dict[int, List[Dict]]:
+    """Group messages by time windows."""
     if not chat_data:
-        return messages_by_window
+        return {}
     
     start_time = start_time or min(msg['time_in_seconds'] for msg in chat_data)
     end_time = end_time or max(msg['time_in_seconds'] for msg in chat_data)
     
+    messages_by_window = defaultdict(list)
     for message in chat_data:
         time = message['time_in_seconds']
         if start_time <= time <= end_time:
             window = (time - start_time) // window_size
             messages_by_window[window].append(message)
     
-    return dict(messages_by_window)  # Convert defaultdict to regular dict before returning
+    return dict(messages_by_window)
 
 def calculate_activity(messages_by_window: Dict[int, List[Dict]]) -> Dict[int, int]:
-    """
-    Calculate the number of messages in each time window.
-
-    Args:
-        messages_by_window (Dict[int, List[Dict]]): Messages grouped by time window.
-
-    Returns:
-        Dict[int, int]: Number of messages in each time window.
-    """
+    """Calculate the number of messages in each time window."""
     return {window: len(messages) for window, messages in messages_by_window.items()}
 
 def select_top_moments(activity_by_window: Dict[int, int], num_moments: int) -> List[int]:
-    """
-    Select the top moments based on message activity.
-
-    Args:
-        activity_by_window (Dict[int, int]): Number of messages in each time window.
-        num_moments (int): Number of top moments to select.
-
-    Returns:
-        List[int]: List of top moment window indices.
-    """
+    """Select the top moments based on message activity."""
     sorted_moments = sorted(
         activity_by_window.keys(),
         key=lambda w: (-activity_by_window[w], w)
@@ -83,6 +56,7 @@ def select_top_moments(activity_by_window: Dict[int, int], num_moments: int) -> 
 
 def create_moment_data(top_moments: List[int], messages_by_window: Dict[int, List[Dict]], 
                        activity_by_window: Dict[int, int], window_size: int) -> List[Dict]:
+    """Create detailed data for top chat moments."""
     moment_data = []
     for window in top_moments:
         messages = messages_by_window[window]
@@ -97,36 +71,19 @@ def create_moment_data(top_moments: List[int], messages_by_window: Dict[int, Lis
     return sorted(moment_data, key=lambda x: x['timestamp'])
 
 def validate_input(window_size: int, num_moments: int) -> None:
-    """
-    Validate input parameters for analyze_chat_moments.
-
-    Args:
-        window_size (int): Size of each time window in seconds.
-        num_moments (int): Number of top moments to identify.
-
-    Raises:
-        ValueError: If window_size or num_moments is less than or equal to 0.
-    """
+    """Validate input parameters for analyze_chat_moments."""
     if window_size <= 0:
         raise ValueError("window_size must be greater than 0")
     if num_moments <= 0:
         raise ValueError("num_moments must be greater than 0")
 
 def analyze_chat_moments(chat_data: List[Dict], window_size: int = DEFAULT_WINDOW_SIZE, 
-                         start_time: int = None, end_time: int = None,
+                         start_time: Optional[int] = None, end_time: Optional[int] = None,
                          num_moments: int = DEFAULT_NUM_MOMENTS) -> List[Dict]:
     """
     Analyze chat data to identify top moments of activity.
-
-    Args:
-        chat_data (List[Dict]): List of chat message dictionaries.
-        window_size (int): Size of each time window in seconds.
-        start_time (int, optional): Start time for analysis in seconds.
-        end_time (int, optional): End time for analysis in seconds.
-        num_moments (int): Number of top moments to identify.
-
-    Returns:
-        List[Dict]: Detailed data for top chat moments.
+    
+    Returns a list of dictionaries containing detailed data for top chat moments.
     """
     if not chat_data:
         return []
@@ -152,7 +109,8 @@ def format_timestamp(seconds: int) -> str:
     """Convert seconds to a formatted string."""
     return str(timedelta(seconds=seconds))
 
-def format_output(top_moments: List[Dict], num_messages: int) -> str:
+def format_output(top_moments: List[Dict], num_messages: Optional[int]) -> str:
+    """Format the output for top chat moments."""
     if not top_moments:
         return create_summary([], [])
 
@@ -177,16 +135,7 @@ def format_output(top_moments: List[Dict], num_messages: int) -> str:
     return "\n\n".join(output) + summary
 
 def create_summary(top_moments: List[Dict], message_counts: List[int]) -> str:
-    """
-    Create a summary of the analysis results.
-
-    Args:
-        top_moments (List[Dict]): List of top chat moments.
-        message_counts (List[int]): List of message counts for each moment.
-
-    Returns:
-        str: Formatted summary string.
-    """
+    """Create a summary of the analysis results."""
     summary = f"\nAnalysis Summary:\n"
     summary += f"Total moments analyzed: {len(top_moments)}\n"
     if message_counts:
@@ -199,7 +148,7 @@ def create_summary(top_moments: List[Dict], message_counts: List[int]) -> str:
         summary += "No messages found in the specified range."
     return summary
 
-def main():
+def main() -> None:
     """Main function to run the Twitch chat analyzer."""
     parser = argparse.ArgumentParser(description="Analyze Twitch chat moments")
     parser.add_argument("-f", "--file", type=str, required=True, 
@@ -232,16 +181,8 @@ def main():
     output = format_output(moments, args.num_messages)
     print(output)
 
-def load_chat_data(file_path: str) -> List[Dict]:
-    """
-    Load chat data from a JSON file.
-
-    Args:
-        file_path (str): Path to the JSON file.
-
-    Returns:
-        List[Dict]: List of chat message dictionaries.
-    """
+def load_chat_data(file_path: str) -> Optional[List[Dict]]:
+    """Load chat data from a JSON file."""
     try:
         with open(file_path, 'r') as f:
             return json.load(f)

@@ -46,26 +46,43 @@ def calculate_activity(messages_by_window: Dict[int, List[Dict]]) -> Dict[int, i
     """Calculate the number of messages in each time window."""
     return {window: len(messages) for window, messages in messages_by_window.items()}
 
-def select_top_moments(activity_by_window: Dict[int, int], num_moments: int) -> List[int]:
-    """Select the top moments based on message activity."""
+def calculate_slope(activity_by_window: Dict[int, int], use_ratio: bool = False) -> Dict[int, float]:
+    """Calculate the slope (change in activity) between consecutive windows."""
+    slopes = {}
+    windows = sorted(activity_by_window.keys())
+    for i in range(1, len(windows)):
+        current_window = windows[i]
+        previous_window = windows[i-1]
+        current_activity = activity_by_window[current_window]
+        previous_activity = activity_by_window[previous_window]
+        if use_ratio and previous_activity > 0:
+            slope = (current_activity - previous_activity) / previous_activity
+        else:
+            slope = current_activity - previous_activity
+        slopes[current_window] = slope
+    return slopes
+
+def select_top_moments(slopes: Dict[int, int], num_moments: int) -> List[int]:
+    """Select the top moments based on the highest increase in message activity."""
     sorted_moments = sorted(
-        activity_by_window.keys(),
-        key=lambda w: (-activity_by_window[w], w)
+        slopes.keys(),
+        key=lambda w: (-slopes[w], w)  # Sort by slope in descending order
     )
     return sorted_moments[:num_moments] if len(sorted_moments) > num_moments else sorted_moments
 
 def create_moment_data(top_moments: List[int], messages_by_window: Dict[int, List[Dict]], 
-                       activity_by_window: Dict[int, int], window_size: int) -> List[Dict]:
-    """Create detailed data for top chat moments."""
+                       activity_by_window: Dict[int, int], slopes: Dict[int, int], window_size: int) -> List[Dict]:
+    """Create detailed data for top chat moments based on change in activity."""
     moment_data = []
     for window in top_moments:
         messages = messages_by_window[window]
         if messages:
-            timestamp = messages[0]['time_in_seconds']  # Use the timestamp of the first message in the window
+            timestamp = messages[0]['time_in_seconds']
             moment_data.append({
                 'timestamp': timestamp,
                 'formatted_time': format_timestamp(timestamp),
                 'message_count': activity_by_window[window],
+                'slope': slopes[window],
                 'messages': messages
             })
     return sorted(moment_data, key=lambda x: x['timestamp'])
@@ -79,16 +96,19 @@ def validate_input(window_size: int, num_moments: int) -> None:
 
 def analyze_chat_moments(chat_data: List[Dict], window_size: int = DEFAULT_WINDOW_SIZE, 
                          start_time: Optional[int] = None, end_time: Optional[int] = None,
-                         num_moments: int = DEFAULT_NUM_MOMENTS) -> List[Dict]:
+                         num_moments: Optional[int] = DEFAULT_NUM_MOMENTS,
+                         all_moments: bool = False, use_ratio: bool = False) -> List[Dict]:
     """
-    Analyze chat data to identify top moments of activity.
+    Analyze chat data to identify moments with the highest change in activity.
     
     Returns a list of dictionaries containing detailed data for top chat moments.
+    If all_moments is True, return all moments.
     """
     if not chat_data:
         return []
     
-    validate_input(window_size, num_moments)
+    if not all_moments and num_moments is not None:
+        validate_input(window_size, num_moments)
     
     messages_by_window = group_messages_by_window(chat_data, window_size, start_time, end_time)
     
@@ -102,14 +122,21 @@ def analyze_chat_moments(chat_data: List[Dict], window_size: int = DEFAULT_WINDO
                 messages_by_window[window] = []
     
     activity_by_window = calculate_activity(messages_by_window)
-    top_moments = select_top_moments(activity_by_window, num_moments)
-    return create_moment_data(top_moments, messages_by_window, activity_by_window, window_size)
+    slopes = calculate_slope(activity_by_window, use_ratio)
+    
+    if all_moments:
+        top_moments = sorted(slopes.keys())
+    else:
+        positive_slopes = {k: v for k, v in slopes.items() if v > 0}
+        top_moments = select_top_moments(positive_slopes, num_moments or DEFAULT_NUM_MOMENTS)
+    
+    return create_moment_data(top_moments, messages_by_window, activity_by_window, slopes, window_size)
 
 def format_timestamp(seconds: int) -> str:
     """Convert seconds to a formatted string."""
     return str(timedelta(seconds=seconds))
 
-def format_output(top_moments: List[Dict], num_messages: Optional[int]) -> str:
+def format_output(top_moments: List[Dict], num_messages: Optional[int], use_ratio: bool = False) -> str:
     """Format the output for top chat moments."""
     if not top_moments:
         return create_summary([], [])
@@ -119,10 +146,16 @@ def format_output(top_moments: List[Dict], num_messages: Optional[int]) -> str:
     for moment in top_moments:
         formatted_time = moment['formatted_time']
         message_count = moment['message_count']
+        slope = moment['slope']
         
         # Scale the bar length relative to the maximum count
         bar_length = int((message_count / max_count) * MAX_BAR_LENGTH)
-        visualization = f"{formatted_time} | {'-' * bar_length} | {message_count} messages"
+        if use_ratio:
+            delta_str = f"{slope:+.2%}"
+        else:
+            delta_sign = '+' if slope > 0 else '-' if slope < 0 else ' '
+            delta_str = f"{delta_sign}{abs(slope)}"
+        visualization = f"{formatted_time} | {'-' * bar_length} | {message_count} messages (Δ{delta_str})"
         output.append(visualization)
         
         if num_messages is not None:
@@ -163,6 +196,10 @@ def main() -> None:
                         help="End time for analysis in HH:MM:SS format (default: end of chat)")
     parser.add_argument("-m", "--num_moments", type=int, default=DEFAULT_NUM_MOMENTS,
                         help=f"Number of top moments to analyze (default: {DEFAULT_NUM_MOMENTS})")
+    parser.add_argument("--all_moments", action="store_true",
+                        help="Output all moments instead of just the top ones")
+    parser.add_argument("--use_ratio", action="store_true",
+                        help="Use ratio instead of difference for slope calculation")
     args = parser.parse_args()
 
     chat_data = load_chat_data(args.file)
@@ -174,11 +211,13 @@ def main() -> None:
 
     moments = analyze_chat_moments(chat_data, window_size=args.window_size,
                                    start_time=start_time, end_time=end_time,
-                                   num_moments=args.num_moments)
+                                   num_moments=args.num_moments,
+                                   all_moments=args.all_moments,
+                                   use_ratio=args.use_ratio)
 
     print(f"Number of moments analyzed: {len(moments)}")
 
-    output = format_output(moments, args.num_messages)
+    output = format_output(moments, args.num_messages, args.use_ratio)
     print(output)
 
 def load_chat_data(file_path: str) -> Optional[List[Dict]]:

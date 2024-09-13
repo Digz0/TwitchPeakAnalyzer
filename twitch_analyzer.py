@@ -14,7 +14,7 @@ import argparse
 # Constants
 MAX_BAR_LENGTH = 100
 DEFAULT_WINDOW_SIZE = 10
-DEFAULT_NUM_MOMENTS = 50  # This now represents 50 positive and 50 negative slopes
+DEFAULT_NUM_MOMENTS = 100  # This now represents 50 positive-negative slope pairs (100 total moments)
 TIME_FORMAT = "%H:%M:%S"
 
 def time_to_seconds(time_str: str) -> int:
@@ -63,18 +63,26 @@ def calculate_slope(activity_by_window: Dict[int, int], use_ratio: bool = False)
     return slopes
 
 def select_top_moments(slopes: Dict[int, int], num_moments: int) -> List[int]:
-    """Select the top moments based on the highest increase and decrease in message activity."""
+    """Select the top moments based on steepest positive and negative slopes."""
     positive_slopes = sorted(
-        [w for w, s in slopes.items() if s > 0],
-        key=lambda w: (-slopes[w], w)
+        [(w, s) for w, s in slopes.items() if s > 0],
+        key=lambda x: -x[1]  # Sort by slope value, descending
     )[:num_moments]
     
     negative_slopes = sorted(
-        [w for w, s in slopes.items() if s < 0],
-        key=lambda w: (-abs(slopes[w]), w)  # Sort by absolute value, descending
+        [(w, s) for w, s in slopes.items() if s < 0],
+        key=lambda x: x[1]  # Sort by slope value, ascending (most negative first)
     )[:num_moments]
     
-    return sorted(positive_slopes + negative_slopes)
+    # Interleave positive and negative slopes
+    combined_slopes = []
+    for i in range(max(len(positive_slopes), len(negative_slopes))):
+        if i < len(positive_slopes):
+            combined_slopes.append(positive_slopes[i][0])
+        if i < len(negative_slopes):
+            combined_slopes.append(negative_slopes[i][0])
+    
+    return combined_slopes
 
 def create_moment_data(top_moments: List[int], messages_by_window: Dict[int, List[Dict]], 
                        activity_by_window: Dict[int, int], slopes: Dict[int, int], window_size: int) -> List[Dict]:
@@ -102,7 +110,7 @@ def validate_input(window_size: int, num_moments: int) -> None:
 
 def analyze_chat_moments(chat_data: List[Dict], window_size: int = DEFAULT_WINDOW_SIZE, 
                          start_time: Optional[int] = None, end_time: Optional[int] = None,
-                         num_moments: Optional[int] = DEFAULT_NUM_MOMENTS,
+                         num_moments: Optional[int] = DEFAULT_NUM_MOMENTS // 2,  # Divide by 2 as we're now selecting pairs
                          all_moments: bool = False, use_ratio: bool = False) -> List[Dict]:
     """
     Analyze chat data to identify moments with the highest change in activity.
@@ -133,7 +141,7 @@ def analyze_chat_moments(chat_data: List[Dict], window_size: int = DEFAULT_WINDO
     if all_moments:
         top_moments = sorted(slopes.keys())
     else:
-        top_moments = select_top_moments(slopes, num_moments or DEFAULT_NUM_MOMENTS)
+        top_moments = select_top_moments(slopes, num_moments or (DEFAULT_NUM_MOMENTS // 2))
     
     return create_moment_data(top_moments, messages_by_window, activity_by_window, slopes, window_size)
 
@@ -207,8 +215,8 @@ def main() -> None:
                         help="Start time for analysis in HH:MM:SS format (default: beginning of chat)")
     parser.add_argument("-e", "--end_time", type=str, default=None,
                         help="End time for analysis in HH:MM:SS format (default: end of chat)")
-    parser.add_argument("-m", "--num_moments", type=int, default=DEFAULT_NUM_MOMENTS,
-                        help=f"Number of top moments to analyze for each slope direction (default: {DEFAULT_NUM_MOMENTS})")
+    parser.add_argument("-m", "--num_moments", type=int, default=DEFAULT_NUM_MOMENTS // 2,
+                        help=f"Number of activity 'humps' to analyze (default: {DEFAULT_NUM_MOMENTS // 2})")
     parser.add_argument("--all_moments", action="store_true",
                         help="Output all moments instead of just the top ones")
     parser.add_argument("--use_ratio", action="store_true",

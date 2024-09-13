@@ -14,7 +14,7 @@ import argparse
 # Constants
 MAX_BAR_LENGTH = 100
 DEFAULT_WINDOW_SIZE = 10
-DEFAULT_NUM_MOMENTS = 50
+DEFAULT_NUM_MOMENTS = 50  # This now represents 50 positive and 50 negative slopes
 TIME_FORMAT = "%H:%M:%S"
 
 def time_to_seconds(time_str: str) -> int:
@@ -63,12 +63,18 @@ def calculate_slope(activity_by_window: Dict[int, int], use_ratio: bool = False)
     return slopes
 
 def select_top_moments(slopes: Dict[int, int], num_moments: int) -> List[int]:
-    """Select the top moments based on the highest increase in message activity."""
-    sorted_moments = sorted(
-        slopes.keys(),
-        key=lambda w: (-slopes[w], w)  # Sort by slope in descending order
-    )
-    return sorted_moments[:num_moments] if len(sorted_moments) > num_moments else sorted_moments
+    """Select the top moments based on the highest increase and decrease in message activity."""
+    positive_slopes = sorted(
+        [w for w, s in slopes.items() if s > 0],
+        key=lambda w: (-slopes[w], w)
+    )[:num_moments]
+    
+    negative_slopes = sorted(
+        [w for w, s in slopes.items() if s < 0],
+        key=lambda w: (-abs(slopes[w]), w)  # Sort by absolute value, descending
+    )[:num_moments]
+    
+    return sorted(positive_slopes + negative_slopes)
 
 def create_moment_data(top_moments: List[int], messages_by_window: Dict[int, List[Dict]], 
                        activity_by_window: Dict[int, int], slopes: Dict[int, int], window_size: int) -> List[Dict]:
@@ -127,8 +133,7 @@ def analyze_chat_moments(chat_data: List[Dict], window_size: int = DEFAULT_WINDO
     if all_moments:
         top_moments = sorted(slopes.keys())
     else:
-        positive_slopes = {k: v for k, v in slopes.items() if v > 0}
-        top_moments = select_top_moments(positive_slopes, num_moments or DEFAULT_NUM_MOMENTS)
+        top_moments = select_top_moments(slopes, num_moments or DEFAULT_NUM_MOMENTS)
     
     return create_moment_data(top_moments, messages_by_window, activity_by_window, slopes, window_size)
 
@@ -155,7 +160,11 @@ def format_output(top_moments: List[Dict], num_messages: Optional[int], use_rati
         else:
             delta_sign = '+' if slope > 0 else '-' if slope < 0 else ' '
             delta_str = f"{delta_sign}{abs(slope)}"
-        visualization = f"{formatted_time} | {'-' * bar_length} | {message_count} messages (Δ{delta_str})"
+        
+        # Add slope indicator
+        slope_indicator = "↑" if slope > 0 else "↓" if slope < 0 else "-"
+        
+        visualization = f"{formatted_time} | {'-' * bar_length} | {message_count} messages {slope_indicator} (Δ{delta_str})"
         output.append(visualization)
         
         if num_messages is not None:
@@ -175,7 +184,11 @@ def create_summary(top_moments: List[Dict], message_counts: List[int]) -> str:
         avg_messages = sum(message_counts) / len(message_counts)
         summary += f"Average messages per moment: {avg_messages:.2f}\n"
         summary += f"Max messages in a moment: {max(message_counts)}\n"
-        summary += f"Min messages in a moment: {min(message_counts)}"
+        summary += f"Min messages in a moment: {min(message_counts)}\n"
+        positive_slopes = sum(1 for moment in top_moments if moment['slope'] > 0)
+        negative_slopes = sum(1 for moment in top_moments if moment['slope'] < 0)
+        summary += f"Positive slopes: {positive_slopes}\n"
+        summary += f"Negative slopes: {negative_slopes}"
     else:
         summary += "Average messages per moment: 0.00\n"
         summary += "No messages found in the specified range."
@@ -195,7 +208,7 @@ def main() -> None:
     parser.add_argument("-e", "--end_time", type=str, default=None,
                         help="End time for analysis in HH:MM:SS format (default: end of chat)")
     parser.add_argument("-m", "--num_moments", type=int, default=DEFAULT_NUM_MOMENTS,
-                        help=f"Number of top moments to analyze (default: {DEFAULT_NUM_MOMENTS})")
+                        help=f"Number of top moments to analyze for each slope direction (default: {DEFAULT_NUM_MOMENTS})")
     parser.add_argument("--all_moments", action="store_true",
                         help="Output all moments instead of just the top ones")
     parser.add_argument("--use_ratio", action="store_true",

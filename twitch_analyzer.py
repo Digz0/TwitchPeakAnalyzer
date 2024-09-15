@@ -63,20 +63,20 @@ def calculate_slope(activity_by_window: Dict[int, int], use_ratio: bool = False)
     return slopes
 
 def select_top_moments(slopes: Dict[int, int], num_moments: int) -> List[int]:
-    """Select the top moments based on steepest positive and negative slopes."""
+    """Select the top moments by interleaving top positive and negative slopes."""
     positive_slopes = sorted(
         [(w, s) for w, s in slopes.items() if s > 0],
-        key=lambda x: -x[1]  # Sort by slope value, descending
-    )[:num_moments]
+        key=lambda x: -x[1]  # Sort descending
+    )
     
     negative_slopes = sorted(
         [(w, s) for w, s in slopes.items() if s < 0],
-        key=lambda x: x[1]  # Sort by slope value, ascending (most negative first)
-    )[:num_moments]
+        key=lambda x: x[1]  # Sort ascending
+    )
     
-    # Interleave positive and negative slopes
     combined_slopes = []
-    for i in range(max(len(positive_slopes), len(negative_slopes))):
+    max_moments = num_moments // 2
+    for i in range(max_moments):
         if i < len(positive_slopes):
             combined_slopes.append(positive_slopes[i][0])
         if i < len(negative_slopes):

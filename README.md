@@ -48,8 +48,8 @@ python twitch_analyzer.py --help
 
 ## Output
 
-- `chat_activity_analysis.png`: A graph showing chat activity over time, with significant peaks and dips highlighted
-- Console output: A list of significant slopes (peaks and dips) in chronological order
+- `chat_activity_analysis.png`: A graph showing chat activity over time, with significant peaks and their following dips (within 1 minute) highlighted
+- Console output: A list of significant positive slopes and their following negative slopes (within 1 minute) in chronological order
 
 ## License
 

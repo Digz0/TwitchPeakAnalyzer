@@ -26,27 +26,26 @@ def calculate_slopes(frequency):
         slopes[current_time] = slope
     return slopes
 
-def find_significant_slopes(slopes, num_peaks=50):
+def find_significant_slopes(slopes, num_peaks=50, window_size=10):
     positive_slopes = sorted([(t, s) for t, s in slopes.items() if s > 0], key=lambda x: -x[1])[:num_peaks]
     positive_slopes.sort(key=lambda x: x[0])  # Sort positive slopes chronologically
     
     all_slopes = []
     for i in range(len(positive_slopes)):
-        all_slopes.append(positive_slopes[i])
+        current_time, current_slope = positive_slopes[i]
+        all_slopes.append((current_time, current_slope))
         
-        if i < len(positive_slopes) - 1:
-            current_time = positive_slopes[i][0]
-            next_time = positive_slopes[i+1][0]
-            
-            # Find the steepest negative slope between current and next positive slope
-            steepest_negative = min(
-                ((t, s) for t, s in slopes.items() if current_time < t < next_time and s < 0),
-                key=lambda x: x[1],
-                default=None
-            )
-            
-            if steepest_negative:
-                all_slopes.append(steepest_negative)
+        # Look ahead max 1 minute (6 * 10-second windows)
+        next_minute = current_time + (60 // window_size)
+        
+        # Find all negative slopes within the next minute
+        negative_slopes = [(t, s) for t, s in slopes.items() 
+                           if current_time < t <= next_minute and s < 0]
+        
+        if negative_slopes:
+            # Get the steepest negative slope within the time window
+            steepest_negative = min(negative_slopes, key=lambda x: x[1])
+            all_slopes.append(steepest_negative)
     
     return all_slopes
 
@@ -101,7 +100,7 @@ def main():
     chat_data = load_chat_data(args.file)
     frequency = calculate_message_frequency(chat_data, args.window)
     slopes = calculate_slopes(frequency)
-    significant_slopes = find_significant_slopes(slopes, args.num_peaks)
+    significant_slopes = find_significant_slopes(slopes, args.num_peaks, args.window)
 
     print(f"Top {args.num_peaks} positive slopes and intervening negative slopes (chronological order):")
     for time, slope in significant_slopes:

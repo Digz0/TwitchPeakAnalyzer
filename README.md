@@ -1,5 +1,7 @@
 # TwitchPeakAnalyzer
 
+A tool to analyze Twitch chat activity and identify significant peaks and dips in message frequency.
+
 ## Installation
 
 1. Clone this repository:
@@ -25,10 +27,29 @@
    python twitch_analyzer.py -f chat_data.json
    ```
 
+3. The script will generate two outputs:
+   - A console output listing significant slopes (peaks and dips in chat activity)
+   - An image file `chat_activity_analysis.png` showing the chat activity graph
+
+### Additional Options
+
+- `-w` or `--window`: Set the time window size in seconds (default: 10)
+- `-n` or `--num_peaks`: Set the number of top positive slopes to display (default: 50)
+
+For example:
+```
+python twitch_analyzer.py -f chat_data.json -w 15 -n 30
+```
+
 For more options, run:
 ```
 python twitch_analyzer.py --help
 ```
+
+## Output
+
+- `chat_activity_analysis.png`: A graph showing chat activity over time, with significant peaks and dips highlighted
+- Console output: A list of significant slopes (peaks and dips) in chronological order
 
 ## License
 

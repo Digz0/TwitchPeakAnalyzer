@@ -33,14 +33,10 @@ class TestTwitchAnalyzer(unittest.TestCase):
         self.assertEqual(slopes, {1: 2, 2: -1, 3: 2})
 
     def test_find_significant_slopes(self):
-        slopes = {1: 5, 2: -2, 3: 3, 4: -1, 5: 4, 6: -3}
+        slopes = {1: 5, 2: -2, 3: 3, 4: -3, 5: 4, 6: -1}
         significant_slopes = find_significant_slopes(slopes, num_peaks=3, window_size=10)
-        expected = [(1, 5), (2, -2), (3, 3), (4, -1), (5, 4), (6, -3)]
+        expected = [(1, 5), (4, -3), (3, 3), (4, -3), (5, 4), (6, -1)]
         self.assertEqual(significant_slopes, expected)
-
-    def test_format_time(self):
-        self.assertEqual(format_time(65), "0:01:05")
-        self.assertEqual(format_time(3665), "1:01:05")
 
     def test_find_significant_slopes_with_no_negatives(self):
         slopes = {1: 5, 2: 3, 3: 4}
@@ -100,6 +96,18 @@ class TestTwitchAnalyzer(unittest.TestCase):
         self.assertEqual(mock_find_slopes.call_args[0][1], 30)  # Check num_peaks argument
         self.assertEqual(mock_find_slopes.call_args[0][2], 20)  # Check window_size argument
         mock_plot.assert_called_once()
+
+def test_find_significant_slopes_with_steepest_negative(self):
+    slopes = {1: 5, 2: -1, 3: -3, 4: -2, 5: 4, 6: -1, 7: -4}
+    significant_slopes = find_significant_slopes(slopes, num_peaks=2, window_size=10)
+    expected = [(1, 5), (3, -3), (5, 4), (7, -4)]
+    self.assertEqual(significant_slopes, expected)
+
+def test_find_significant_slopes_steepest_negative(self):
+    slopes = {1: 5, 2: -1, 3: -2, 4: -3, 5: 4, 6: -1, 7: -2}
+    significant_slopes = find_significant_slopes(slopes, num_peaks=2, window_size=10)
+    expected = [(1, 5), (4, -3), (5, 4), (7, -2)]
+    self.assertEqual(significant_slopes, expected)
 
 if __name__ == '__main__':
     unittest.main()

@@ -37,15 +37,15 @@ def find_significant_slopes(slopes, num_peaks=50, window_size=10):
         # Look ahead max 1 minute (6 * 10-second windows)
         next_minute = current_time + (60 // window_size)
         
-        # Find the nearest negative slope within the next minute
-        nearest_negative = min(
+        # Find the steepest negative slope within the next minute
+        steepest_negative = min(
             ((t, s) for t, s in slopes.items() if current_time < t <= next_minute and s < 0),
-            key=lambda x: x[0],  # Sort by time, not by slope value
+            key=lambda x: x[1],  # Sort by slope value (steepest negative)
             default=None
         )
         
-        if nearest_negative:
-            all_slopes.append(nearest_negative)
+        if steepest_negative:
+            all_slopes.append(steepest_negative)
     
     return all_slopes
 

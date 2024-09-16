@@ -25,8 +25,8 @@ class TestTwitchAnalyzer(unittest.TestCase):
 
     def test_find_significant_slopes(self):
         slopes = {1: 5, 2: -2, 3: 3, 4: -1, 5: 4, 6: -3}
-        significant_slopes = find_significant_slopes(slopes, num_peaks=2, window_size=10)
-        expected = [(1, 5), (2, -2), (5, 4), (6, -3)]
+        significant_slopes = find_significant_slopes(slopes, num_peaks=3, window_size=10)
+        expected = [(1, 5), (2, -2), (3, 3), (4, -1), (5, 4), (6, -3)]
         self.assertEqual(significant_slopes, expected)
 
     def test_format_time(self):

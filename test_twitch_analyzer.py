@@ -97,17 +97,17 @@ class TestTwitchAnalyzer(unittest.TestCase):
         self.assertEqual(mock_find_slopes.call_args[0][2], 20)  # Check window_size argument
         mock_plot.assert_called_once()
 
-def test_find_significant_slopes_with_steepest_negative(self):
-    slopes = {1: 5, 2: -1, 3: -3, 4: -2, 5: 4, 6: -1, 7: -4}
-    significant_slopes = find_significant_slopes(slopes, num_peaks=2, window_size=10)
-    expected = [(1, 5), (3, -3), (5, 4), (7, -4)]
-    self.assertEqual(significant_slopes, expected)
+    def test_find_significant_slopes_with_steepest_negative(self):
+        slopes = {1: 5, 2: -1, 3: -3, 4: -2, 5: 4, 6: -1, 7: -4}
+        significant_slopes = find_significant_slopes(slopes, num_peaks=2, window_size=10)
+        expected = [(1, 5), (3, -3), (5, 4), (7, -4)]
+        self.assertEqual(significant_slopes, expected)
 
-def test_find_significant_slopes_steepest_negative(self):
-    slopes = {1: 5, 2: -1, 3: -2, 4: -3, 5: 4, 6: -1, 7: -2}
-    significant_slopes = find_significant_slopes(slopes, num_peaks=2, window_size=10)
-    expected = [(1, 5), (4, -3), (5, 4), (7, -2)]
-    self.assertEqual(significant_slopes, expected)
+    def test_find_significant_slopes_steepest_negative(self):
+        slopes = {1: 5, 2: -1, 3: -2, 4: -3, 5: 4, 6: -1, 7: -2}
+        significant_slopes = find_significant_slopes(slopes, num_peaks=2, window_size=10)
+        expected = [(1, 5), (4, -3), (5, 4), (7, -2)]
+        self.assertEqual(significant_slopes, expected)
 
 if __name__ == '__main__':
     unittest.main()

@@ -90,25 +90,25 @@ def plot_chat_activity(frequency, significant_slopes, window_size):
     plt.savefig('chat_activity_analysis.png', dpi=300)  # Increased DPI for better quality
     plt.close()
 
-def main():
+def main(file_path, window_size=10, num_peaks=50):
+    chat_data = load_chat_data(file_path)
+    frequency = calculate_message_frequency(chat_data, window_size)
+    slopes = calculate_slopes(frequency)
+    significant_slopes = find_significant_slopes(slopes, num_peaks, window_size)
+
+    print(f"Top {num_peaks} positive slopes and intervening negative slopes (chronological order):")
+    for time, slope in significant_slopes:
+        sign = '+' if slope > 0 else ''
+        print(f"Time: {format_time(time * window_size)}, Slope: {sign}{slope}")
+
+    plot_chat_activity(frequency, significant_slopes, window_size)
+    print("Chat activity analysis image saved as 'chat_activity_analysis.png'")
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze Twitch chat activity")
     parser.add_argument("-f", "--file", required=True, help="Path to the JSON file containing chat data")
     parser.add_argument("-w", "--window", type=int, default=10, help="Window size in seconds (default: 10)")
     parser.add_argument("-n", "--num_peaks", type=int, default=50, help="Number of top positive slopes to display (default: 50)")
     args = parser.parse_args()
 
-    chat_data = load_chat_data(args.file)
-    frequency = calculate_message_frequency(chat_data, args.window)
-    slopes = calculate_slopes(frequency)
-    significant_slopes = find_significant_slopes(slopes, args.num_peaks, args.window)
-
-    print(f"Top {args.num_peaks} positive slopes and intervening negative slopes (chronological order):")
-    for time, slope in significant_slopes:
-        sign = '+' if slope > 0 else ''
-        print(f"Time: {format_time(time * args.window)}, Slope: {sign}{slope}")
-
-    plot_chat_activity(frequency, significant_slopes, args.window)
-    print("Chat activity analysis image saved as 'chat_activity_analysis.png'")
-
-if __name__ == "__main__":
-    main()
+    main(args.file, args.window, args.num_peaks)

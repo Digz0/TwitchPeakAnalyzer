@@ -31,21 +31,21 @@ def find_significant_slopes(slopes, num_peaks=50, window_size=10):
     positive_slopes.sort(key=lambda x: x[0])  # Sort positive slopes chronologically
     
     all_slopes = []
-    for i, (current_time, current_slope) in enumerate(positive_slopes):
+    for current_time, current_slope in positive_slopes:
         all_slopes.append((current_time, current_slope))
         
         # Look ahead max 1 minute (6 * 10-second windows)
         next_minute = current_time + (60 // window_size)
         
-        # Find the steepest negative slope within the next minute
-        steepest_negative = min(
+        # Find the nearest negative slope within the next minute
+        nearest_negative = min(
             ((t, s) for t, s in slopes.items() if current_time < t <= next_minute and s < 0),
-            key=lambda x: x[1],
+            key=lambda x: x[0],  # Sort by time, not by slope value
             default=None
         )
         
-        if steepest_negative:
-            all_slopes.append(steepest_negative)
+        if nearest_negative:
+            all_slopes.append(nearest_negative)
     
     return all_slopes
 

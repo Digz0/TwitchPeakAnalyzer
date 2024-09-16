@@ -1,258 +1,114 @@
-"""
-Twitch Chat Analyzer
-
-This module provides functionality to analyze Twitch chat data,
-identifying and visualizing moments of high activity.
-"""
-
 import json
 from collections import defaultdict
-from typing import List, Dict, Optional
 from datetime import timedelta
 import argparse
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 
-# Constants
-MAX_BAR_LENGTH = 100
-DEFAULT_WINDOW_SIZE = 10
-DEFAULT_NUM_MOMENTS = 100  # This now represents 50 positive-negative slope pairs (100 total moments)
-TIME_FORMAT = "%H:%M:%S"
+def load_chat_data(file_path):
+    with open(file_path, 'r') as f:
+        return json.load(f)
 
-def time_to_seconds(time_str: str) -> int:
-    """Convert HH:MM:SS to seconds."""
-    try:
-        return int(timedelta(**dict(zip(['hours', 'minutes', 'seconds'], map(int, time_str.split(':'))))).total_seconds())
-    except ValueError:
-        raise ValueError("Time must be in HH:MM:SS format")
+def calculate_message_frequency(chat_data, window_size=10):
+    frequency = defaultdict(int)
+    for msg in chat_data:
+        t = msg['time_in_seconds']
+        frequency[t // window_size] += 1
+    return dict(frequency)
 
-def group_messages_by_window(chat_data: List[Dict], window_size: int, 
-                             start_time: Optional[int] = None, end_time: Optional[int] = None) -> Dict[int, List[Dict]]:
-    """Group messages by time windows."""
-    if not chat_data:
-        return {}
-    
-    start_time = start_time or min(msg['time_in_seconds'] for msg in chat_data)
-    end_time = end_time or max(msg['time_in_seconds'] for msg in chat_data)
-    
-    messages_by_window = defaultdict(list)
-    for message in chat_data:
-        time = message['time_in_seconds']
-        if start_time <= time <= end_time:
-            window = (time - start_time) // window_size
-            messages_by_window[window].append(message)
-    
-    return dict(messages_by_window)
-
-def calculate_activity(messages_by_window: Dict[int, List[Dict]]) -> Dict[int, int]:
-    """Calculate the number of messages in each time window."""
-    return {window: len(messages) for window, messages in messages_by_window.items()}
-
-def calculate_slope(activity_by_window: Dict[int, int], use_ratio: bool = False) -> Dict[int, float]:
-    """Calculate the slope (change in activity) between consecutive windows."""
+def calculate_slopes(frequency):
     slopes = {}
-    windows = sorted(activity_by_window.keys())
-    for i in range(1, len(windows)):
-        current_window = windows[i]
-        previous_window = windows[i-1]
-        current_activity = activity_by_window[current_window]
-        previous_activity = activity_by_window[previous_window]
-        if use_ratio and previous_activity > 0:
-            slope = (current_activity - previous_activity) / previous_activity
-        else:
-            slope = current_activity - previous_activity
-        slopes[current_window] = slope
+    times = sorted(frequency.keys())
+    for i in range(1, len(times)):
+        current_time = times[i]
+        prev_time = times[i-1]
+        slope = frequency[current_time] - frequency[prev_time]
+        slopes[current_time] = slope
     return slopes
 
-def select_top_moments(slopes: Dict[int, int], num_moments: int) -> List[int]:
-    """Select the top moments by interleaving top positive and negative slopes."""
-    positive_slopes = sorted(
-        [(w, s) for w, s in slopes.items() if s > 0],
-        key=lambda x: -x[1]  # Sort descending
-    )
+def find_significant_slopes(slopes, num_peaks=50, window_size=10):
+    positive_slopes = sorted([(t, s) for t, s in slopes.items() if s > 0], key=lambda x: -x[1])[:num_peaks]
+    positive_slopes.sort(key=lambda x: x[0])  # Sort positive slopes chronologically
     
-    negative_slopes = sorted(
-        [(w, s) for w, s in slopes.items() if s < 0],
-        key=lambda x: x[1]  # Sort ascending
-    )
+    all_slopes = []
+    for current_time, current_slope in positive_slopes:
+        all_slopes.append((current_time, current_slope))
+        
+        # Look ahead max 1 minute (6 * 10-second windows)
+        next_minute = current_time + (60 // window_size)
+        
+        # Find the steepest negative slope within the next minute
+        steepest_negative = min(
+            ((t, s) for t, s in slopes.items() if current_time < t <= next_minute and s < 0),
+            key=lambda x: x[1],  # Sort by slope value (steepest negative)
+            default=None
+        )
+        
+        if steepest_negative:
+            all_slopes.append(steepest_negative)
     
-    combined_slopes = []
-    max_moments = num_moments // 2
-    for i in range(max_moments):
-        if i < len(positive_slopes):
-            combined_slopes.append(positive_slopes[i][0])
-        if i < len(negative_slopes):
-            combined_slopes.append(negative_slopes[i][0])
-    
-    return combined_slopes
+    return all_slopes
 
-def create_moment_data(top_moments: List[int], messages_by_window: Dict[int, List[Dict]], 
-                       activity_by_window: Dict[int, int], slopes: Dict[int, int], window_size: int) -> List[Dict]:
-    """Create detailed data for top chat moments based on change in activity."""
-    moment_data = []
-    for window in top_moments:
-        messages = messages_by_window[window]
-        if messages:
-            timestamp = messages[0]['time_in_seconds']
-            moment_data.append({
-                'timestamp': timestamp,
-                'formatted_time': format_timestamp(timestamp),
-                'message_count': activity_by_window[window],
-                'slope': slopes[window],
-                'messages': messages
-            })
-    return sorted(moment_data, key=lambda x: x['timestamp'])
-
-def validate_input(window_size: int, num_moments: int) -> None:
-    """Validate input parameters for analyze_chat_moments."""
-    if window_size <= 0:
-        raise ValueError("window_size must be greater than 0")
-    if num_moments <= 0:
-        raise ValueError("num_moments must be greater than 0")
-
-def analyze_chat_moments(chat_data: List[Dict], window_size: int = DEFAULT_WINDOW_SIZE, 
-                         start_time: Optional[int] = None, end_time: Optional[int] = None,
-                         num_moments: Optional[int] = DEFAULT_NUM_MOMENTS // 2,  # Divide by 2 as we're now selecting pairs
-                         all_moments: bool = False, use_ratio: bool = False) -> List[Dict]:
-    """
-    Analyze chat data to identify moments with the highest change in activity.
-    
-    Returns a list of dictionaries containing detailed data for top chat moments.
-    If all_moments is True, return all moments.
-    """
-    if not chat_data:
-        return []
-    
-    if not all_moments and num_moments is not None:
-        validate_input(window_size, num_moments)
-    
-    messages_by_window = group_messages_by_window(chat_data, window_size, start_time, end_time)
-    
-    if not messages_by_window:
-        return []
-    
-    if start_time is not None and end_time is not None:
-        total_windows = (end_time - start_time) // window_size + 1
-        for window in range(total_windows):
-            if window not in messages_by_window:
-                messages_by_window[window] = []
-    
-    activity_by_window = calculate_activity(messages_by_window)
-    slopes = calculate_slope(activity_by_window, use_ratio)
-    
-    if all_moments:
-        top_moments = sorted(slopes.keys())
-    else:
-        top_moments = select_top_moments(slopes, num_moments or (DEFAULT_NUM_MOMENTS // 2))
-    
-    return create_moment_data(top_moments, messages_by_window, activity_by_window, slopes, window_size)
-
-def format_timestamp(seconds: int) -> str:
-    """Convert seconds to a formatted string."""
+def format_time(seconds):
     return str(timedelta(seconds=seconds))
 
-def format_output(top_moments: List[Dict], num_messages: Optional[int], use_ratio: bool = False) -> str:
-    """Format the output for top chat moments."""
-    if not top_moments:
-        return create_summary([], [])
-
-    max_count = max(moment['message_count'] for moment in top_moments)
-    output = []
-    for moment in top_moments:
-        formatted_time = moment['formatted_time']
-        message_count = moment['message_count']
-        slope = moment['slope']
-        
-        # Scale the bar length relative to the maximum count
-        bar_length = int((message_count / max_count) * MAX_BAR_LENGTH)
-        if use_ratio:
-            delta_str = f"{slope:+.2%}"
-        else:
-            delta_sign = '+' if slope > 0 else '-' if slope < 0 else ' '
-            delta_str = f"{delta_sign}{abs(slope)}"
-        
-        # Add slope indicator
-        slope_indicator = "↑" if slope > 0 else "↓" if slope < 0 else "-"
-        
-        visualization = f"{formatted_time} | {'-' * bar_length} | {message_count} messages {slope_indicator} (Δ{delta_str})"
-        output.append(visualization)
-        
-        if num_messages is not None:
-            messages = [f"  - {msg['message']}" for msg in moment['messages'][:num_messages]]
-            output.append("\n".join(messages))
+def plot_chat_activity(frequency, significant_slopes, window_size):
+    times = sorted(frequency.keys())
+    messages = [frequency[t] for t in times]
     
-    message_counts = [moment['message_count'] for moment in top_moments]
-    summary = create_summary(top_moments, message_counts)
+    # Calculate the full duration of the chat
+    max_time = max(times) * window_size
     
-    return "\n\n".join(output) + summary
+    plt.figure(figsize=(30, 10))
+    plt.plot([t * window_size for t in times], messages, label='Message Frequency')
+    
+    positive_slopes = [(t, s) for t, s in significant_slopes if s > 0]
+    negative_slopes = [(t, s) for t, s in significant_slopes if s < 0]
+    
+    plt.scatter([t * window_size for t, _ in positive_slopes], [frequency[t] for t, _ in positive_slopes], 
+                color='green', label='Positive Slopes', zorder=5)
+    plt.scatter([t * window_size for t, _ in negative_slopes], [frequency[t] for t, _ in negative_slopes], 
+                color='red', label='Negative Slopes', zorder=5)
+    
+    plt.xlabel('Time')
+    plt.ylabel('Number of Messages')
+    plt.title('Chat Activity Analysis')
+    plt.legend()
+    plt.grid(True)
+    
+    # Format x-axis to show time in H:M:S
+    def format_time(x, pos):
+        return str(timedelta(seconds=int(x)))
+    
+    plt.gca().xaxis.set_major_formatter(FuncFormatter(format_time))
+    plt.gcf().autofmt_xdate()  # Rotate and align the tick labels
+    
+    # Set the x-axis limit to the full duration of the chat
+    plt.xlim(0, max_time)
+    
+    plt.tight_layout()  # Adjust the layout to prevent cutting off labels
+    plt.savefig('chat_activity_analysis.png', dpi=300)  # Increased DPI for better quality
+    plt.close()
 
-def create_summary(top_moments: List[Dict], message_counts: List[int]) -> str:
-    """Create a summary of the analysis results."""
-    summary = f"\nAnalysis Summary:\n"
-    summary += f"Total moments analyzed: {len(top_moments)}\n"
-    if message_counts:
-        avg_messages = sum(message_counts) / len(message_counts)
-        summary += f"Average messages per moment: {avg_messages:.2f}\n"
-        summary += f"Max messages in a moment: {max(message_counts)}\n"
-        summary += f"Min messages in a moment: {min(message_counts)}\n"
-        positive_slopes = sum(1 for moment in top_moments if moment['slope'] > 0)
-        negative_slopes = sum(1 for moment in top_moments if moment['slope'] < 0)
-        summary += f"Positive slopes: {positive_slopes}\n"
-        summary += f"Negative slopes: {negative_slopes}"
-    else:
-        summary += "Average messages per moment: 0.00\n"
-        summary += "No messages found in the specified range."
-    return summary
+def main(file_path, window_size=10, num_peaks=50):
+    chat_data = load_chat_data(file_path)
+    frequency = calculate_message_frequency(chat_data, window_size)
+    slopes = calculate_slopes(frequency)
+    significant_slopes = find_significant_slopes(slopes, num_peaks, window_size)
 
-def main() -> None:
-    """Main function to run the Twitch chat analyzer."""
-    parser = argparse.ArgumentParser(description="Analyze Twitch chat moments")
-    parser.add_argument("-f", "--file", type=str, required=True, 
-                        help="Path to the JSON file containing Twitch chat data")
-    parser.add_argument("-n", "--num_messages", type=int, default=None, 
-                        help="Number of messages to display for each moment")
-    parser.add_argument("-w", "--window_size", type=int, default=DEFAULT_WINDOW_SIZE,
-                        help=f"Size of the time window in seconds (default: {DEFAULT_WINDOW_SIZE})")
-    parser.add_argument("-s", "--start_time", type=str, default=None,
-                        help="Start time for analysis in HH:MM:SS format (default: beginning of chat)")
-    parser.add_argument("-e", "--end_time", type=str, default=None,
-                        help="End time for analysis in HH:MM:SS format (default: end of chat)")
-    parser.add_argument("-m", "--num_moments", type=int, default=DEFAULT_NUM_MOMENTS // 2,
-                        help=f"Number of activity 'humps' to analyze (default: {DEFAULT_NUM_MOMENTS // 2})")
-    parser.add_argument("--all_moments", action="store_true",
-                        help="Output all moments instead of just the top ones")
-    parser.add_argument("--use_ratio", action="store_true",
-                        help="Use ratio instead of difference for slope calculation")
-    args = parser.parse_args()
+    print(f"Top {num_peaks} positive slopes and intervening negative slopes (chronological order):")
+    for time, slope in significant_slopes:
+        sign = '+' if slope > 0 else ''
+        print(f"Time: {format_time(time * window_size)}, Slope: {sign}{slope}")
 
-    chat_data = load_chat_data(args.file)
-    if not chat_data:
-        return
-
-    start_time = time_to_seconds(args.start_time) if args.start_time else None
-    end_time = time_to_seconds(args.end_time) if args.end_time else None
-
-    moments = analyze_chat_moments(chat_data, window_size=args.window_size,
-                                   start_time=start_time, end_time=end_time,
-                                   num_moments=args.num_moments,
-                                   all_moments=args.all_moments,
-                                   use_ratio=args.use_ratio)
-
-    print(f"Number of moments analyzed: {len(moments)}")
-
-    output = format_output(moments, args.num_messages, args.use_ratio)
-    print(output)
-
-def load_chat_data(file_path: str) -> Optional[List[Dict]]:
-    """Load chat data from a JSON file."""
-    try:
-        with open(file_path, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"Error: File '{file_path}' not found.")
-    except json.JSONDecodeError:
-        print(f"Error: '{file_path}' is not a valid JSON file.")
-    except Exception as e:
-        print(f"Error: An unexpected error occurred: {str(e)}")
-    return None
+    plot_chat_activity(frequency, significant_slopes, window_size)
+    print("Chat activity analysis image saved as 'chat_activity_analysis.png'")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Analyze Twitch chat activity")
+    parser.add_argument("-f", "--file", required=True, help="Path to the JSON file containing chat data")
+    parser.add_argument("-w", "--window", type=int, default=10, help="Window size in seconds (default: 10)")
+    parser.add_argument("-n", "--num_peaks", type=int, default=50, help="Number of top positive slopes to display (default: 50)")
+    args = parser.parse_args()
+
+    main(args.file, args.window, args.num_peaks)

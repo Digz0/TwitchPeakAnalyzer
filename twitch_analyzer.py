@@ -91,13 +91,12 @@ def plot_chat_activity(frequency, significant_slopes, window_size):
     plt.close()
 
 def export_slopes_for_extension(significant_slopes, window_size):
-    sorted_slopes = sorted(significant_slopes, key=lambda x: x[0])
     return [
         {
             "time": time * window_size,
             "slope": slope
         }
-        for time, slope in sorted_slopes if slope > 0
+        for time, slope in significant_slopes
     ]
 
 def generate_interactive_html(significant_slopes, window_size, vod_id):

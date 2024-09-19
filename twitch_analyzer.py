@@ -90,7 +90,103 @@ def plot_chat_activity(frequency, significant_slopes, window_size):
     plt.savefig('chat_activity_analysis.png', dpi=300)  # Increased DPI for better quality
     plt.close()
 
-def main(file_path, window_size=10, num_peaks=50):
+def export_slopes_for_extension(significant_slopes, window_size):
+    sorted_slopes = sorted(significant_slopes, key=lambda x: x[0])
+    return [
+        {
+            "time": time * window_size,
+            "slope": slope
+        }
+        for time, slope in sorted_slopes if slope > 0
+    ]
+
+def generate_interactive_html(significant_slopes, window_size, vod_id):
+    slopes_data = json.dumps([
+        {"time": time * window_size, "slope": slope}
+        for time, slope in significant_slopes if slope > 0
+    ])
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Twitch VOD Chat Activity Analyzer</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; }}
+            #controls {{ margin-bottom: 20px; }}
+        </style>
+    </head>
+    <body>
+        <h1>Twitch VOD Chat Activity Analyzer</h1>
+        <div id="twitch-embed"></div>
+        <div id="controls">
+            <button id="jumpBtn">Jump to Next Peak</button>
+            <span id="currentTime"></span>
+        </div>
+        <div id="message"></div>
+
+        <script src="https://player.twitch.tv/js/embed/v1.js"></script>
+        <script>
+            const slopes = {slopes_data};
+            let currentIndex = 0;
+            let player;
+
+            new Twitch.Player("twitch-embed", {{
+                video: "{vod_id}",
+                width: 854,
+                height: 480
+            }});
+
+            function onPlayerReady(callback) {{
+                if (typeof Twitch !== 'undefined' && Twitch.Player.READY) {{
+                    callback();
+                }} else {{
+                    setTimeout(() => onPlayerReady(callback), 100);
+                }}
+            }}
+
+            onPlayerReady(() => {{
+                player = new Twitch.Player("twitch-embed", {{
+                    video: "{vod_id}"
+                }});
+
+                player.addEventListener(Twitch.Player.PLAYING, () => {{
+                    setInterval(checkTime, 1000);
+                }});
+
+                document.getElementById('jumpBtn').addEventListener('click', jumpToNextPeak);
+            }});
+
+            function checkTime() {{
+                const currentTime = player.getCurrentTime();
+                document.getElementById('currentTime').textContent = formatTime(currentTime);
+
+                if (currentIndex < slopes.length && currentTime >= slopes[currentIndex].time) {{
+                    document.getElementById('message').textContent = 
+                        `Peak detected at ${{formatTime(slopes[currentIndex].time)}}. Slope: ${{slopes[currentIndex].slope}}`;
+                    currentIndex++;
+                }}
+            }}
+
+            function jumpToNextPeak() {{
+                if (currentIndex < slopes.length) {{
+                    player.seek(slopes[currentIndex].time);
+                    currentIndex++;
+                }}
+            }}
+
+            function formatTime(seconds) {{
+                return new Date(seconds * 1000).toISOString().substr(11, 8);
+            }}
+        </script>
+    </body>
+    </html>
+    """
+
+    with open('vod_chat_activity_analyzer.html', 'w') as f:
+        f.write(html_content)
+
+def main(file_path, vod_id, window_size=10, num_peaks=50):
     chat_data = load_chat_data(file_path)
     frequency = calculate_message_frequency(chat_data, window_size)
     slopes = calculate_slopes(frequency)
@@ -104,11 +200,21 @@ def main(file_path, window_size=10, num_peaks=50):
     plot_chat_activity(frequency, significant_slopes, window_size)
     print("Chat activity analysis image saved as 'chat_activity_analysis.png'")
 
+    generate_interactive_html(significant_slopes, window_size, vod_id)
+    print("Interactive HTML file saved as 'vod_chat_activity_analyzer.html'")
+
+    # Export slopes for browser extension
+    extension_data = export_slopes_for_extension(significant_slopes, window_size)
+    with open('slopes_data.json', 'w') as f:
+        json.dump(extension_data, f)
+    print("Slopes data for browser extension saved as 'slopes_data.json'")
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Analyze Twitch chat activity")
+    parser = argparse.ArgumentParser(description="Analyze Twitch VOD chat activity")
     parser.add_argument("-f", "--file", required=True, help="Path to the JSON file containing chat data")
+    parser.add_argument("-v", "--vod", required=True, help="Twitch VOD ID")
     parser.add_argument("-w", "--window", type=int, default=10, help="Window size in seconds (default: 10)")
     parser.add_argument("-n", "--num_peaks", type=int, default=50, help="Number of top positive slopes to display (default: 50)")
     args = parser.parse_args()
 
-    main(args.file, args.window, args.num_peaks)
+    main(args.file, args.vod, args.window, args.num_peaks)

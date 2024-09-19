@@ -2,11 +2,6 @@ let peaks = [];
 let currentPeakIndex = -1;
 let notificationElement = null;
 
-function extractVODId() {
-  const match = window.location.pathname.match(/\/videos\/(\d+)/);
-  return match ? match[1] : null;
-}
-
 function loadChatPeaks() {
   fetch(chrome.runtime.getURL('slopes_data.json'))
     .then(response => response.json())
@@ -88,7 +83,6 @@ function checkForPeakWindow() {
       }
     }
     
-    // If we're not in any peak window, remove the notification and reset the currentPeakIndex
     removeNotification();
     currentPeakIndex = -1;
   }
@@ -108,10 +102,6 @@ setInterval(checkForPeakWindow, 1000);
 
 // We'll keep this listener for potential future use or manual reloading
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action === "load_chat_peaks") {
-    loadChatPeaks();
-    sendResponse({status: "Chat peaks loaded. Press 'N' to jump to peaks."});
-  }
   if (request.action === "get_peaks_status") {
     sendResponse({status: "Chat peaks loaded. Press 'N' to jump to peaks."});
   }

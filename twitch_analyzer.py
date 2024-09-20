@@ -185,7 +185,7 @@ def generate_interactive_html(significant_slopes, window_size, vod_id):
     with open('vod_chat_activity_analyzer.html', 'w') as f:
         f.write(html_content)
 
-def main(file_path, window_size=10, num_peaks=50):
+def main(file_path, window_size=10, num_peaks=50, generate_image=False):
     chat_data = load_chat_data(file_path)
     frequency = calculate_message_frequency(chat_data, window_size)
     slopes = calculate_slopes(frequency)
@@ -196,8 +196,9 @@ def main(file_path, window_size=10, num_peaks=50):
         sign = '+' if slope > 0 else ''
         print(f"Time: {format_time(time * window_size)}, Slope: {sign}{slope}")
 
-    plot_chat_activity(frequency, significant_slopes, window_size)
-    print("Chat activity analysis image saved as 'chat_activity_analysis.png'")
+    if generate_image:
+        plot_chat_activity(frequency, significant_slopes, window_size)
+        print("Chat activity analysis image saved as 'chat_activity_analysis.png'")
 
     # Export slopes for browser extension
     extension_data = export_slopes_for_extension(significant_slopes, window_size)
@@ -210,6 +211,7 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--file", required=True, help="Path to the JSON file containing chat data")
     parser.add_argument("-w", "--window", type=int, default=10, help="Window size in seconds (default: 10)")
     parser.add_argument("-n", "--num_peaks", type=int, default=50, help="Number of top positive slopes to display (default: 50)")
+    parser.add_argument("--generate-image", action="store_true", help="Generate chat activity analysis image")
     args = parser.parse_args()
 
-    main(args.file, args.window, args.num_peaks)
+    main(args.file, args.window, args.num_peaks, args.generate_image)

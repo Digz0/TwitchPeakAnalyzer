@@ -40,5 +40,6 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
 
 - `-w` or `--window`: Set the time window size in seconds (default: 10)
 - `-n` or `--num_peaks`: Set the number of top positive slopes to display (default: 50)
+- `--generate-image`: Generate chat activity analysis image (optional)
 
-Example:
+Examples:

@@ -185,7 +185,7 @@ def generate_interactive_html(significant_slopes, window_size, vod_id):
     with open('vod_chat_activity_analyzer.html', 'w') as f:
         f.write(html_content)
 
-def main(file_path, vod_id, window_size=10, num_peaks=50):
+def main(file_path, window_size=10, num_peaks=50):
     chat_data = load_chat_data(file_path)
     frequency = calculate_message_frequency(chat_data, window_size)
     slopes = calculate_slopes(frequency)
@@ -199,9 +199,6 @@ def main(file_path, vod_id, window_size=10, num_peaks=50):
     plot_chat_activity(frequency, significant_slopes, window_size)
     print("Chat activity analysis image saved as 'chat_activity_analysis.png'")
 
-    generate_interactive_html(significant_slopes, window_size, vod_id)
-    print("Interactive HTML file saved as 'vod_chat_activity_analyzer.html'")
-
     # Export slopes for browser extension
     extension_data = export_slopes_for_extension(significant_slopes, window_size)
     with open('slopes_data.json', 'w') as f:
@@ -211,9 +208,8 @@ def main(file_path, vod_id, window_size=10, num_peaks=50):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze Twitch VOD chat activity")
     parser.add_argument("-f", "--file", required=True, help="Path to the JSON file containing chat data")
-    parser.add_argument("-v", "--vod", required=True, help="Twitch VOD ID")
     parser.add_argument("-w", "--window", type=int, default=10, help="Window size in seconds (default: 10)")
     parser.add_argument("-n", "--num_peaks", type=int, default=50, help="Number of top positive slopes to display (default: 50)")
     args = parser.parse_args()
 
-    main(args.file, args.vod, args.window, args.num_peaks)
+    main(args.file, args.window, args.num_peaks)

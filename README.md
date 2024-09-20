@@ -24,7 +24,7 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
 
 2. Run the TwitchPeakAnalyzer:
    ```
-   python twitch_analyzer.py -f chat_data.json -v YOUR_VIDEO_ID
+   python twitch_analyzer.py -f chat_data.json
    ```
 
 3. Load the browser extension:

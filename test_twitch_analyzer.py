@@ -7,11 +7,9 @@ from twitch_analyzer import (
     calculate_message_frequency,
     calculate_slopes,
     find_significant_slopes,
-    format_time,
     load_chat_data,
     plot_chat_activity,
-    main,
-    export_slopes_for_extension
+    main
 )
 
 class TestTwitchAnalyzer(unittest.TestCase):
@@ -110,16 +108,26 @@ class TestTwitchAnalyzer(unittest.TestCase):
         expected = [(1, 5), (4, -3), (5, 4), (7, -2)]
         self.assertEqual(significant_slopes, expected)
 
-    def test_export_slopes_for_extension(self):
-        significant_slopes = [(1, 5), (2, -3), (3, 4)]
-        window_size = 10
-        expected_output = [
-            {"time": 10, "slope": 5},
-            {"time": 20, "slope": -3},
-            {"time": 30, "slope": 4}
-        ]
-        result = export_slopes_for_extension(significant_slopes, window_size)
-        self.assertEqual(result, expected_output)
+    @patch('twitch_analyzer.load_chat_data')
+    def test_main_function_creates_slopes_data_json(self, mock_load_data):
+        mock_load_data.return_value = self.sample_chat_data
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_dir = os.getcwd()
+            os.chdir(temp_dir)
+            
+            try:
+                main('test.json', window_size=10, num_peaks=2)
+                
+                self.assertTrue(os.path.exists('slopes_data.json'))
+                
+                with open('slopes_data.json', 'r') as f:
+                    slopes_data = json.load(f)
+                
+                self.assertIsInstance(slopes_data, list)
+                self.assertTrue(all('time' in item and 'slope' in item for item in slopes_data))
+            finally:
+                os.chdir(original_dir)
 
 if __name__ == '__main__':
     unittest.main()

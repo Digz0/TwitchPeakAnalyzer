@@ -10,7 +10,13 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
    cd TwitchPeakAnalyzer
    ```
 
-2. Install the required dependencies:
+2. Create and activate a virtual environment (recommended):
+   ```
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+   ```
+
+3. Install the required dependencies:
    ```
    pip install -r requirements.txt
    ```
@@ -26,14 +32,15 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
    ```
    python twitch_analyzer.py -f chat_data.json
    ```
-   This will generate a `slopes_data.json` file.
+   This will generate a `slopes_data.json` file for the browser extension.
 
 3. Copy the generated `slopes_data.json` file to the browser extension directory.
 
 4. Load the browser extension:
    - Open Chrome and go to `chrome://extensions/`
    - Enable "Developer mode"
-   - Click "Load unpacked" and select the extension directory
+   - Click "Load unpacked" and select the extension directory (containing manifest.json)
+   - Note: This extension uses Manifest V3
 
 5. Navigate to the Twitch VOD page. The extension will automatically load chat peaks.
 
@@ -47,7 +54,24 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
 - `-n` or `--num_peaks`: Set the number of top positive slopes to display (default: 50)
 - `--generate-image`: Generate chat activity analysis image (optional)
 
-Examples:
+Example:
 ```
 python twitch_analyzer.py -f chat_data.json -w 15 -n 75 --generate-image
 ```
+If you use the `--generate-image` option, it will create `chat_activity_analysis.png`.
+
+## Requirements
+
+- Python 3.7+
+- Chrome browser (for the extension)
+
+## Testing
+
+To run the tests:
+```
+pytest test_twitch_analyzer.py
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

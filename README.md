@@ -26,15 +26,20 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
    ```
    python twitch_analyzer.py -f chat_data.json
    ```
+   This will generate a `slopes_data.json` file.
 
-3. Load the browser extension:
+3. Copy the generated `slopes_data.json` file to the browser extension directory.
+
+4. Load the browser extension:
    - Open Chrome and go to `chrome://extensions/`
    - Enable "Developer mode"
    - Click "Load unpacked" and select the extension directory
 
-4. Navigate to the Twitch VOD page. The extension will automatically load chat peaks.
+5. Navigate to the Twitch VOD page. The extension will automatically load chat peaks.
 
-5. Press 'N' to jump to the next peak while watching the VOD.
+6. While watching the VOD:
+   - Press 'N' to jump to the next peak.
+   - An on-screen notification will appear when you're in a peak window.
 
 ### Additional Options
 
@@ -43,3 +48,6 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
 - `--generate-image`: Generate chat activity analysis image (optional)
 
 Examples:
+```
+python twitch_analyzer.py -f chat_data.json -w 15 -n 75 --generate-image
+```

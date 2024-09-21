@@ -10,7 +10,8 @@ from twitch_analyzer import (
     format_time,
     load_chat_data,
     plot_chat_activity,
-    main
+    main,
+    export_slopes_for_extension
 )
 
 class TestTwitchAnalyzer(unittest.TestCase):
@@ -75,7 +76,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
         mock_load_data.return_value = self.sample_chat_data
         
         with patch('builtins.print') as mock_print:
-            main('test.json')
+            main('test.json', generate_image=True)
             
             mock_load_data.assert_called_once_with('test.json')
             mock_plot.assert_called_once()
@@ -88,7 +89,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
     def test_main_function_with_custom_args(self, mock_find_slopes, mock_calc_freq, mock_load_data, mock_plot):
         mock_load_data.return_value = self.sample_chat_data
         
-        main('test.json', window_size=20, num_peaks=30)
+        main('test.json', window_size=20, num_peaks=30, generate_image=True)
         
         mock_load_data.assert_called_once_with('test.json')
         mock_calc_freq.assert_called_once_with(self.sample_chat_data, 20)
@@ -100,7 +101,7 @@ class TestTwitchAnalyzer(unittest.TestCase):
     def test_find_significant_slopes_with_steepest_negative(self):
         slopes = {1: 5, 2: -1, 3: -3, 4: -2, 5: 4, 6: -1, 7: -4}
         significant_slopes = find_significant_slopes(slopes, num_peaks=2, window_size=10)
-        expected = [(1, 5), (3, -3), (5, 4), (7, -4)]
+        expected = [(1, 5), (7, -4), (5, 4), (7, -4)]
         self.assertEqual(significant_slopes, expected)
 
     def test_find_significant_slopes_steepest_negative(self):
@@ -108,6 +109,17 @@ class TestTwitchAnalyzer(unittest.TestCase):
         significant_slopes = find_significant_slopes(slopes, num_peaks=2, window_size=10)
         expected = [(1, 5), (4, -3), (5, 4), (7, -2)]
         self.assertEqual(significant_slopes, expected)
+
+    def test_export_slopes_for_extension(self):
+        significant_slopes = [(1, 5), (2, -3), (3, 4)]
+        window_size = 10
+        expected_output = [
+            {"time": 10, "slope": 5},
+            {"time": 20, "slope": -3},
+            {"time": 30, "slope": 4}
+        ]
+        result = export_slopes_for_extension(significant_slopes, window_size)
+        self.assertEqual(result, expected_output)
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,7 +6,7 @@ async function loadChatPeaks() {
   try {
     const response = await fetch(chrome.runtime.getURL('slopes_data.json'));
     peaks = await response.json();
-    console.log(`Loaded ${peaks.length} chat peaks. Press 'N' to jump to the next peak.`);
+    console.log(`Loaded ${peaks.length} chat peaks. Press 'Enter' to jump to the next peak.`);
   } catch (error) {
     console.error('Error loading slopes_data.json:', error);
   }
@@ -64,7 +64,7 @@ function checkForPeakWindow() {
 }
 
 document.addEventListener('keydown', event => {
-  if (event.key === 'N' || event.key === 'n') {
+  if (event.key === 'Enter') {
     jumpToNextPeak();
   }
 });
@@ -74,6 +74,6 @@ setInterval(checkForPeakWindow, 1000);
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "get_peaks_status") {
-    sendResponse({status: "Chat peaks loaded. Press 'N' to jump to peaks."});
+    sendResponse({status: "Chat peaks loaded. Press 'Enter' to jump to peaks."});
   }
 });

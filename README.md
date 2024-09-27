@@ -45,7 +45,7 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
 5. Navigate to the Twitch VOD page. The extension will automatically load chat peaks.
 
 6. While watching the VOD:
-   - Press 'N' to jump to the next peak.
+   - Press 'Enter' to jump to the next peak.
    - An on-screen notification will appear when you're in a peak window.
 
 ### Additional Options

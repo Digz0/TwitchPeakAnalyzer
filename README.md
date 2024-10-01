@@ -53,12 +53,19 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
 - `-w` or `--window`: Set the time window size in seconds (default: 10)
 - `-n` or `--num_peaks`: Set the number of top positive slopes to display (default: 50)
 - `--generate-image`: Generate chat activity analysis image (optional)
+- `--slope-method`: Choose the method to calculate slopes: 'difference' or 'ratio' (default: difference)
 
-Example:
+Example using the ratio method and generating an image:
 ```
-python twitch_analyzer.py -f chat_data.json -w 15 -n 75 --generate-image
+python twitch_analyzer.py -f chat_data.json -w 15 -n 75 --generate-image --slope-method ratio
 ```
+
 If you use the `--generate-image` option, it will create `chat_activity_analysis.png`.
+
+### Slope Calculation Methods
+
+- Difference: Calculates the absolute change in message frequency between time windows.
+- Ratio: Calculates the relative change in message frequency between time windows. This can be useful for detecting significant relative changes, especially in less active chats.
 
 ## Requirements
 
@@ -69,7 +76,7 @@ If you use the `--generate-image` option, it will create `chat_activity_analysis
 
 To run the tests:
 ```
-pytest test_twitch_analyzer.py
+python -m unittest test_twitch_analyzer.py
 ```
 
 ## License

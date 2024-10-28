@@ -1,5 +1,4 @@
 let peaks = [];
-let currentPeakIndex = -1;
 let notificationElement = null;
 
 async function loadChatPeaks() {
@@ -17,11 +16,11 @@ function jumpToNextPeak() {
   if (!video || peaks.length === 0) return;
 
   const currentTime = video.currentTime;
-  const nextPeak = peaks.find(peak => peak.time > currentTime && peak.slope > 0);
+  const nextPeak = peaks.find(peak => peak.top.time > currentTime);
   
   if (nextPeak) {
-    video.currentTime = Math.max(0, nextPeak.time - 10);
-    console.log(`Jumped to 10 seconds before peak at ${formatTime(nextPeak.time)}. Slope: ${nextPeak.slope}`);
+    video.currentTime = Math.max(0, nextPeak.before.time);
+    console.log(`Jumped to quiet period at ${formatTime(nextPeak.before.time)} before peak at ${formatTime(nextPeak.top.time)}`);
   } else {
     console.log("No more peaks ahead!");
   }
@@ -53,14 +52,19 @@ function checkForPeakWindow() {
   if (!video || peaks.length === 0) return;
 
   const currentTime = video.currentTime;
-  for (let i = 0; i < peaks.length - 1; i += 2) {
-    const [start, end] = [peaks[i], peaks[i + 1]];
-    if (currentTime >= start.time && currentTime < end.time) {
-      toggleNotification(`Peak window: ${formatTime(start.time)} - ${formatTime(end.time)}`);
-      return;
-    }
+  const currentPeak = peaks.find(peak => 
+    currentTime >= peak.before.time && currentTime <= peak.top.time
+  );
+
+  if (currentPeak) {
+    const messageCount = currentPeak.top.count - currentPeak.before.count;
+    toggleNotification(
+      `Approaching peak: ${formatTime(currentPeak.before.time)} → ${formatTime(currentPeak.top.time)}\n` +
+      `Message increase: ${currentPeak.before.count} → ${currentPeak.top.count} (+${messageCount})`
+    );
+  } else {
+    toggleNotification(null);
   }
-  toggleNotification(null);
 }
 
 document.addEventListener('keydown', event => {

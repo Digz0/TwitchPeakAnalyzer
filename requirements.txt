@@ -1,2 +1,2 @@
 chat-downloader==0.2.8
-matplotlib==3.9.2
+matplotlib==3.8.2

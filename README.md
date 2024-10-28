@@ -1,6 +1,6 @@
 # TwitchPeakAnalyzer
 
-A tool to analyze Twitch VOD chat activity and identify significant peaks and dips in message frequency.
+A tool to analyze Twitch VOD chat activity and identify message frequency peaks and their preceding quiet periods.
 
 ## Installation
 
@@ -50,17 +50,21 @@ A tool to analyze Twitch VOD chat activity and identify significant peaks and di
 
 ### Additional Options
 
-- `-w` or `--window`: Set the time window size in seconds (default: 10)
-- `-n` or `--num_peaks`: Set the number of top positive slopes to display (default: 50)
+- `-w` or `--window`: Set the time window size in seconds (default: 4)
+- `-n` or `--num_top_windows`: Set the number of top message frequency windows to analyze (default: 50)
 - `--generate-image`: Generate chat activity analysis image (optional)
-- `--slope-method`: Choose the method to calculate slopes: 'difference' or 'ratio' (default: difference)
+- `-l` or `--lookback`: Set the lookback time in seconds for finding quiet periods (default: 60)
 
-Example using the ratio method and generating an image:
+Example with custom window size and more peaks:
 ```
-python twitch_analyzer.py -f chat_data.json -w 15 -n 75 --generate-image --slope-method ratio
+python twitch_analyzer.py -f chat_data.json -w 8 -n 75 --generate-image -l 120
 ```
 
-If you use the `--generate-image` option, it will create `chat_activity_analysis.png`.
+The analyzer will:
+1. Find windows with peak message activity
+2. For each peak, find the quietest period within the lookback window
+3. Generate slopes_data.json containing these peaks and their preceding quiet periods
+4. Optionally generate a visualization as chat_activity_analysis.png
 
 ### Slope Calculation Methods
 
